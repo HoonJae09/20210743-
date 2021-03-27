@@ -1,137 +1,187 @@
-﻿#include<bangtal.h>
+﻿#define _CRT_SECURE_NO_WARNINGS
+
+#include<stdio.h>
+#include<stdlib.h>
+#include<time.h>
 
 
+#include<bangtal.h>
 
-SceneID scene1;
-
-ObjectID scr;
-
+SceneID scene;
 ObjectID start;
+ObjectID game_board[9],original_board[16];
+int blank = 8;
 
-ObjectID ta1, ta2, ta3, ta4, ta5, ta6, ta7, ta8, ta9;
+bool game = false;
 
-int bgameX[3][3] = {
-	{604,737,870},{604,737,870},{604,737,870}
-};
-int bgameY[3][3] = {
-	{260,260,260},{130,130,130},{0,0,0}
-};
-ObjectID bgame[3][3] = {
-	{ta1,ta2,ta3},{ta4,ta5,ta6},{ta7,ta8,ta9}
-};
+TimerID timer;
+float timerValue = 0.01f;
+int mixCount;
 
 
-ObjectID createObject(const char* name,const char* image, SceneID scene, int x, int y, bool shown) {
-	ObjectID object = createObject(name);
-	locateObject(object, scene, x, y);
-	if (shown) {
-		showObject(object);
+int indexTOX(int i) 
+{
+	return 400 + 200 * (i % 3);
+}
+
+int indexTOY(int i)
+{
+	return 459 - 200 * (i / 3);
+}
+
+int game_index(ObjectID object)
+{
+	for (int i = 0; i < 9; i++) {
+		if (game_board[i] = object) return i;
 	}
-	return object;
+	return -1;
 }
 
-void Swap(ObjectID&a, ObjectID&b) {
-	ObjectID c = a;
-	a = b;
-	b = c;
+void  game_move(int i)
+{
+	ObjectID object = game_board[i];
+	game_board[i] = game_board[blank];
+	locateObject(game_board[i], scene, indexTOX(i), indexTOY(i)); 
+	game_board[blank] = object;
+	locateObject(game_board[blank], scene, indexTOX(blank), indexTOY(blank));
+
+
+	blank = i;
 }
 
-void SwapX(int x1, int x2) {
-	int cc = x1;
-	x1 = x2;
-	x2 = cc;
-}
-
-void SwapY(int y1, int y2) {
-	int ccc = y1;
-	y1 = y2;
-	y2 = ccc;
-}
-
-void Random() {
-}
-
-void mouseCallback(ObjectID object, int x, int y, MouseAction action) {
-	if (object == start) {
-		hideObject(start);
+void game_print()
+{
+	for (int i = 0; i < 9; i++) {
+		printf("%d", game_board[i]);
 	}
+	printf("\n");
+}
 
-	for (int i = 0; i < 3; i++)
-	{
-		for (int h = 0; h < 3;h++)
-		{
+bool possible_move(int i)
+{
+	if (i % 3 > 0 && blank == i - 1)return true;
+	if (i % 3 < 2 && blank == i + 1)return true;
+	if (i / 3 > 0 && blank == i - 3)return true;
+	if (i / 3 > 2 && blank == i + 3)return true;
 
-			if (object == bgame[i][h] && object != ta9){
-				if (i < 2 && bgame[i + 1][h] == ta9) {
-					Swap(bgame[i][h], ta9);
-					SwapX(bgameX[i][h], bgameX[i + 1][h]);
-					SwapY(bgameY[i][h], bgameY[i + 1][h]);
+	return false;
+}
 
-					locateObject(bgame[i][h], scene1, bgameX[i][h], bgameY[i][h]);
-					locateObject(bgame[i + 1][h], scene1, bgameY[i][h], bgameY[i][h]);
-				}
-				else if (i > 0 && bgame[i - 1][h] == ta9) {
-					locateObject(bgame[i][h], scene1, bgameX[i - 1][h], bgameY[i - 1][h]);
-					locateObject(bgame[i - 1][h], scene1, bgameX[i][h], bgameY[i][h]);
-					Swap(bgame[i][h], ta9);
-				}
-				else if (h < 2 && bgame[i][h + 1] == ta9) {
-					locateObject(bgame[i][h], scene1, bgameX[i][h + 1], bgameY[i][h + 1]);
-					locateObject(bgame[i][h + 1], scene1, bgameX[i][h + 1], bgameY[i][h + 1]);
-					Swap(bgame[i][h], ta9);
-				}
-				else if (h < 2 && bgame[i][h + 1] == ta9) {
-					locateObject(bgame[i][h], scene1, bgameX[i][h - 1], bgameY[i][h - 1]);
-					locateObject(bgame[i][h - 1], scene1, bgameX[i][h], bgameY[i][h]);
-					Swap(bgame[i][h], ta9);
-				}
-			}
+int random_move()
+{
+	int i = -1;
+	
+	while (i == -1) {
+		switch (rand() % 3) {
+		case 0:if (blank % 3 > 0) i = blank - 1;
+			break;
+		case 1:if (blank % 3 < 2) i = blank + 1;
+			break;
+		case 2:if (blank / 3 > 0) i = blank - 3;
+			break;	
+		case 3:if (blank / 3 < 2) i = blank + 3;
+			break;
 		}
 	}
 
+		
+	return i;
 }
 
+bool game_end()
+{
+	for (int i = 0; i < 9;i++) {
+		if (game_board[i] != original_board[i]) return false;
+	}
+	return true;
+}
 
+void game_start()
+{
+	blank = 9;
+	hideObject(game_board[blank]);
 
+	mixCount = 3;
 
-int main() {
-	setMouseCallback(mouseCallback);
+	setTimer(timer, timerValue);
+	startTimer(timer);
+}
+
+void mouseCallback(ObjectID object, int x, int y, MouseAction action)
+{
+	if (game) {
+		int i = game_index(object);
+		if (possible_move(i)) {
+			game_move(i);
+
+			if (game_end()) {
+				game = false;
+				showObject(start);
+				showObject(game_board[blank]);
+
+				showMessage("Completed!!!");
+			}
+		}
+		game_print();
+	}
+	else {
+		if (object == start) {
+			game_start();
+		}
+	}
+}
+
+ObjectID createObject(const char* image, SceneID scene, int x, int y, bool shown = true)
+{
+	ObjectID object = createObject(image);
+	locateObject(object, scene, x, y);
+	if (shown) showObject(object);
+
+	return object;
+
+}
+
+void timerCallback(TimerID timer)
+{
+	game_move(random_move());
+	mixCount--;
+	if (mixCount > 0) {
+		setTimer(timer, timerValue);
+		startTimer(timer);
+	}
+	else {
+		game = true;
+		hideObject(start);
+	}
 	
-	scene1 = createScene("퍼즐", "scr.png");
+}
+	
+SceneID game_init()
+{
+	scene = createScene("퍼즐", "image/scr.png");
+
+	char path[50];
+	for (int i = 0; i < 9; i++) {
+		sprintf(path, "image/%d.png", i + 1);
+		game_board[i] = createObject(path,scene, indexTOX(i), indexTOY(i));
+		original_board[i] = game_board[i];
+
+	}
+	start = createObject("image/start.png", scene, 600, 20);
+
+	timer = createTimer(timerValue);
 
 
+	return scene;
+}
 
-	bgame[0][0] = createObject("ta1.png");
-	locateObject(scene1, bgameX[0][0], bgameY[0][0],true);
-
-	bgame[0][1] = createObject("ta2.png");
-	locateObject(scene1, bgameX[0][1], bgameY[0][1], true);
-
-	bgame[0][2] = createObject("ta3.png");
-	locateObject(scene1, bgameX[0][2], bgameY[0][2], true);
-
-	bgame[1][0] = createObject("ta4.png");
-	locateObject(scene1, bgameX[1][0], bgameY[1][0], true);
-
-	bgame[1][1] = createObject("ta5.png");
-	locateObject(scene1, bgameX[1][1], bgameY[1][1], true);
-
-	bgame[1][2] = createObject("ta6.png");
-	locateObject(scene1, bgameX[1][2], bgameY[1][2], true);
-
-	bgame[2][0] = createObject("ta7.png");
-	locateObject(scene1, bgameX[2][0], bgameY[2][0], true);
-
-	bgame[2][1] = createObject("ta8.png");
-	locateObject(scene1, bgameX[2][1], bgameY[0][0], true);
-
-	bgame[2][2] = createObject("ta9.png");
-	locateObject(scene1, bgameX[2][2], bgameY[2][2], false);
-
-	start = createObject("start.png");
-	locateObject(start, scene1, 0, 0);
-	showObject(start);
-
-	startGame(scene1);
-
+int main()
+{	
+	srand(time(NULL));
+	setGameOption(GameOption::GAME_OPTION_MESSAGE_BOX_BUTTON, false);
+	setGameOption(GameOption::GAME_OPTION_INVENTORY_BUTTON, false);
+	setGameOption(GameOption::GAME_OPTION_ROOM_TITLE, false);	
+	setMouseCallback(mouseCallback);
+	setTimerCallback(timerCallback);
+	startGame(game_init());
 }
